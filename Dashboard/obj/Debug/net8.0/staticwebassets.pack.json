@@ -1,0 +1,41 @@
+{
+  "Files": [
+    {
+      "Id": "/home/vboxuser/cloud-ids-soar/Dashboard/obj/Debug/net8.0/scopedcss/projectbundle/Dashboard.bundle.scp.css",
+      "PackagePath": "staticwebassets/Dashboard.bundle.scp.css"
+    },
+    {
+      "Id": "/home/vboxuser/cloud-ids-soar/Dashboard/wwwroot/app.css",
+      "PackagePath": "staticwebassets/app.css"
+    },
+    {
+      "Id": "/home/vboxuser/cloud-ids-soar/Dashboard/wwwroot/bootstrap/bootstrap.min.css",
+      "PackagePath": "staticwebassets/bootstrap/bootstrap.min.css"
+    },
+    {
+      "Id": "/home/vboxuser/cloud-ids-soar/Dashboard/wwwroot/bootstrap/bootstrap.min.css.map",
+      "PackagePath": "staticwebassets/bootstrap/bootstrap.min.css.map"
+    },
+    {
+      "Id": "/home/vboxuser/cloud-ids-soar/Dashboard/wwwroot/favicon.png",
+      "PackagePath": "staticwebassets/favicon.png"
+    },
+    {
+      "Id": "obj/Debug/net8.0/staticwebassets/msbuild.Dashboard.Microsoft.AspNetCore.StaticWebAssets.props",
+      "PackagePath": "build\\Microsoft.AspNetCore.StaticWebAssets.props"
+    },
+    {
+      "Id": "obj/Debug/net8.0/staticwebassets/msbuild.build.Dashboard.props",
+      "PackagePath": "build\\Dashboard.props"
+    },
+    {
+      "Id": "obj/Debug/net8.0/staticwebassets/msbuild.buildMultiTargeting.Dashboard.props",
+      "PackagePath": "buildMultiTargeting\\Dashboard.props"
+    },
+    {
+      "Id": "obj/Debug/net8.0/staticwebassets/msbuild.buildTransitive.Dashboard.props",
+      "PackagePath": "buildTransitive\\Dashboard.props"
+    }
+  ],
+  "ElementsToRemove": []
+}

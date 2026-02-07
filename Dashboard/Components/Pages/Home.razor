@@ -1,0 +1,53 @@
+@page "/"
+@inject Dashboard.Services.AlertService AlertService
+
+<h1>🛡️ SOC Dashboard</h1>
+
+@if (alerts == null)
+{
+    <p>Loading alerts...</p>
+}
+else if (!alerts.Any())
+{
+    <p>No alerts found.</p>
+}
+else
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Time</th>
+                <th>Type</th>
+                <th>Severity</th>
+                <th>Protocol</th>
+                <th>Service</th>
+                <th>Src Bytes</th>
+                <th>Dst Bytes</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var alert in alerts)
+            {
+                <tr>
+                    <td>@alert.Timestamp</td>
+                    <td>@alert.Alert_Type</td>
+                    <td>@alert.Severity</td>
+                    <td>@alert.Protocol_Type</td>
+                    <td>@alert.Service</td>
+                    <td>@alert.Src_Bytes</td>
+                    <td>@alert.Dst_Bytes</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<Dashboard.Models.Alert>? alerts;
+
+    protected override async Task OnInitializedAsync()
+    {
+        alerts = await AlertService.GetAlertsAsync();
+    }
+}
+
