@@ -1,13 +1,11 @@
-# Use Python 3.10 base image
 FROM python:3.10-slim
 
 WORKDIR /app
 
-# Copy simulator code
-COPY traffic_simulator.py ./
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Install requests library
-RUN pip install --no-cache-dir requests
+COPY traffic_simulator.py .
 
-# Run the simulator
 CMD ["python", "traffic_simulator.py"]
+
