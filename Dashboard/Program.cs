@@ -6,10 +6,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 builder.Services.AddSingleton<Dashboard.Services.AlertService>();
-builder.Services.AddHttpClient<AlertService>(client =>
-{
-    client.BaseAddress = new Uri("http://localhost:8000/");
-});
+builder.Services.AddHttpClient<AlertService>();
 
 var app = builder.Build();
 

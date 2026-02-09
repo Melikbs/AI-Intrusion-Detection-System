@@ -6,26 +6,28 @@ namespace Dashboard.Services
     public class AlertService
     {
         private readonly HttpClient _http;
+        private readonly string _apiUrl;
 
         public AlertService(HttpClient http)
         {
             _http = http;
+            _apiUrl = Environment.GetEnvironmentVariable("API_URL")
+                      ?? "http://fastapi:8000/alerts"; // fallback
         }
 
         public async Task<List<Alert>> GetAlertsAsync()
-{
-    try
-    {
-        // Make sure to include the full FastAPI URL
-        var alerts = await _http.GetFromJsonAsync<List<Alert>>("http://127.0.0.1:8000/alerts");
-        return alerts ?? new List<Alert>();
-    }
-    catch
-    {
-        // If FastAPI is down, just return an empty list
-        return new List<Alert>();
+        {
+            try
+            {
+                var alerts = await _http.GetFromJsonAsync<List<Alert>>(_apiUrl);
+                return alerts ?? new List<Alert>();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"FastAPI error: {ex.Message}");
+                return new List<Alert>();
+            }
+        }
     }
 }
 
-}
-}  

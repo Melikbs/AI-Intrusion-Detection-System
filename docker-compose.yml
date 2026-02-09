@@ -1,0 +1,50 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: postgres
+    restart: always
+    env_file:
+      - .env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  fastapi:
+    build: ./api
+    container_name: fastapi
+    restart: always
+    depends_on:
+      - postgres
+    env_file:
+      - .env
+    volumes:
+      - ./api/alerts_log.csv:/app/alerts_log.csv
+    ports:
+      - "8000:8000"
+
+  dashboard:
+    build: ./Dashboard
+    container_name: dashboard
+    restart: always
+    depends_on:
+      - fastapi
+    ports:
+      - "8080:8080"
+    environment:
+      - API_URL=http://fastapi:8000/alerts
+
+  simulator:
+    build:
+      context: ./streaming
+    container_name: simulator
+    restart: always
+    depends_on:
+      - fastapi
+
+volumes:
+  postgres_data:
+
+

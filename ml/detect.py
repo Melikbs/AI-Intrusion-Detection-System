@@ -17,8 +17,7 @@ COLUMNS = [
     "diff_srv_rate","srv_diff_host_rate","dst_host_count","dst_host_srv_count",
     "dst_host_same_srv_rate","dst_host_diff_srv_rate",
     "dst_host_same_src_port_rate","dst_host_srv_diff_host_rate",
-    "dst_host_serror_rate","dst_host_srv_serror_rate","dst_host_rerror_rate",
-    "dst_host_srv_rerror_rate","label","difficulty"
+    "dst_host_serror_rate","dst_host_srv_serror_rate","dst_host_rerror_rate","dst_host_srv_rerror_rate","label","difficulty"
 ]
 
 # Load test data
@@ -41,8 +40,10 @@ alerts["severity"] = "HIGH"
 alerts["alert_type"] = "INTRUSION_DETECTED"
 
 # Save alerts
-alerts_log = alerts[["timestamp", "alert_type", "severity", "protocol_type", "service", "src_bytes", "dst_bytes"]]
+alerts_log = alerts[["timestamp", "alert_type", "severity", "protocol_type", "s>
 alerts_log.to_csv("alerts_log.csv", index=False)
 
 print(f"[+] Alerts generated: {len(alerts_log)}")
 print("[+] alerts_log.csv created")
+
+
