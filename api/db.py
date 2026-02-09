@@ -31,8 +31,8 @@ class Alert(Base):
     timestamp = Column(String, nullable=False)
     alert_type = Column(String, nullable=False)
     severity = Column(String, nullable=False)
-    protocol_type = Column(Integer, nullable=False)
-    service = Column(Integer, nullable=False)
+    protocol_type = Column(String, nullable=False)  # <-- String now
+    service = Column(String, nullable=False)       # <-- String now
     src_bytes = Column(Integer, nullable=False)
     dst_bytes = Column(Integer, nullable=False)
 

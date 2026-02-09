@@ -3,8 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from db import Alert, SessionLocal, init_db
-import pandas as pd
-import os
+
 
 app = FastAPI(title="Alerts API")
 
@@ -17,8 +16,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# CSV fallback path
-ALERTS_CSV_PATH = os.path.join(os.path.dirname(__file__), "alerts_log.csv")
+
 
 # DB dependency
 def get_db():
@@ -31,33 +29,15 @@ def get_db():
 # Initialize DB
 init_db()
 
-# Populate DB from CSV if empty
-@app.on_event("startup")
-def load_alerts():
-    db = SessionLocal()
-    if db.query(Alert).first() is None and os.path.exists(ALERTS_CSV_PATH):
-        df = pd.read_csv(ALERTS_CSV_PATH)
-        for _, row in df.iterrows():
-            alert = Alert(
-                timestamp=str(row['timestamp']),
-                alert_type=str(row['alert_type']),
-                severity=str(row['severity']),
-                protocol_type=int(row['protocol_type']),
-                service=int(row['service']),
-                src_bytes=int(row['src_bytes']),
-                dst_bytes=int(row['dst_bytes'])
-            )
-            db.add(alert)
-        db.commit()
-    db.close()
+
 
 # Pydantic model for POST requests
 class AlertSchema(BaseModel):
     timestamp: str
     severity: str
     alert_type: str
-    protocol_type: int
-    service: int
+    protocol_type: str  # <-- string now
+    service: str        # <-- string now
     src_bytes: int
     dst_bytes: int
 
