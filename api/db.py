@@ -11,6 +11,7 @@ max_retries = 10
 retry_delay = 5  # seconds
 for i in range(max_retries):
     try:
+    #create engine
         engine = create_engine(DATABASE_URL)
         engine.connect()  # Test connection
         print("Database connected!")
