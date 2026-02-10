@@ -39,6 +39,16 @@ services:
     restart: always
     depends_on:
       - fastapi
+  redis:
+    image: redis:7
+    container_name: redis
+    ports:
+      - "6379:6379"
+  ml_service:
+    build: ./ml_service
+    depends_on:
+      - redis
+
 
 volumes:
   postgres_data:

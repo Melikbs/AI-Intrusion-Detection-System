@@ -1,12 +1,20 @@
 import random
 import time
-import requests
+import redis
 from datetime import datetime
 
-API_URL = "http://fastapi:8000/alerts"
-HEALTH_URL = "http://fastapi:8000/docs"
+# Redis config (Docker service name!)
+REDIS_HOST = "redis"
+REDIS_PORT = 6379
+STREAM_NAME = "traffic_stream"
 
-# Protocols, services, flags
+# Connect to Redis
+redis_client = redis.Redis(
+    host=REDIS_HOST,
+    port=REDIS_PORT,
+    decode_responses=True
+)
+
 PROTOCOL_MAP = {"tcp": 0, "udp": 1, "icmp": 2}
 SERVICE_MAP = {"http": 0, "ftp": 1, "smtp": 2, "dns": 3, "other": 4}
 FLAG_MAP = {"SF": 0, "S0": 1, "REJ": 2}
@@ -15,30 +23,10 @@ protocols = list(PROTOCOL_MAP.keys())
 services = list(SERVICE_MAP.keys())
 flags = list(FLAG_MAP.keys())
 
-# Define unusual services for MEDIUM alerts
 UNUSUAL_SERVICES = ["ftp", "smtp", "dns", "other"]
 
 
-def wait_for_fastapi():
-    """Wait until FastAPI is reachable"""
-    while True:
-        try:
-            r = requests.get(HEALTH_URL, timeout=2)
-            if r.status_code == 200:
-                print("[SIMULATOR] FastAPI is ready ✅")
-                return
-        except requests.exceptions.RequestException:
-            print("[SIMULATOR] Waiting for FastAPI...")
-        time.sleep(3)
-
-
 def determine_severity(src_bytes, dst_bytes, service_name):
-    """
-    Determine alert severity based on thresholds:
-    - src_bytes > 4000 → HIGH
-    - dst_bytes == 0 and unusual service → MEDIUM
-    - else → LOW
-    """
     if src_bytes > 4000:
         return "HIGH"
     elif dst_bytes == 0 and service_name in UNUSUAL_SERVICES:
@@ -55,33 +43,29 @@ def generate_packet():
     src_bytes = random.randint(0, 5000)
     dst_bytes = random.randint(0, 5000)
 
-    # Determine severity properly
     severity = determine_severity(src_bytes, dst_bytes, service)
 
     return {
         "timestamp": datetime.utcnow().isoformat(),
         "alert_type": "TRAFFIC",
         "severity": severity,
-        "protocol_type": proto,  # send real name
-        "service": service,      # send real name
+        "protocol_type": proto,
+        "service": service,
         "flag": flag,
         "src_bytes": src_bytes,
         "dst_bytes": dst_bytes,
     }
 
 
-def send_alert():
+def send_to_queue():
     packet = generate_packet()
-    try:
-        r = requests.post(API_URL, json=packet, timeout=5)
-        print(f"[SIMULATOR] {r.status_code} → {packet}")
-    except requests.exceptions.RequestException as e:
-        print(f"[SIMULATOR] Error sending alert: {e}")
+    redis_client.xadd(STREAM_NAME, packet)
+    print(f"[SIMULATOR] Sent to Redis → {packet}")
 
 
 if __name__ == "__main__":
-    wait_for_fastapi()
+    print("[SIMULATOR] Traffic simulator started 🚀")
     while True:
-        send_alert()
+        send_to_queue()
         time.sleep(2)
 
