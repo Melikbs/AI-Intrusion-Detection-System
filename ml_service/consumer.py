@@ -5,8 +5,10 @@ from ml.detect import predict
 
 REDIS_HOST = "redis"
 REDIS_PORT = 6379
-STREAM_NAME = "traffic_stream"
+
+TRAFFIC_STREAM = "traffic_stream"
 ALERTS_STREAM = "alerts_stream"
+
 GROUP_NAME = "ml_group"
 CONSUMER_NAME = "ml_consumer"
 
@@ -19,7 +21,7 @@ redis_client = redis.Redis(
 # Create consumer group (only once)
 try:
     redis_client.xgroup_create(
-        STREAM_NAME,
+        TRAFFIC_STREAM,
         GROUP_NAME,
         id="0",
         mkstream=True
@@ -29,45 +31,47 @@ except redis.exceptions.ResponseError:
 
 
 def process_alert(data):
-    risk = predict(data)  # Make sure this returns a number
-    print("[DEBUG] risk =", risk)
+    """
+    Run ML prediction and publish result to alerts_stream
+    """
+    risk = predict(data)
 
     alert = {
         "timestamp": datetime.utcnow().isoformat(),
-        "alert_type": "TRAFFIC",
+        "alert_type": "ML_ALERT",
         "severity": data.get("severity", "LOW"),
-        "protocol_type": data.get("protocol_type", ""),
-        "service": data.get("service", ""),
-        "src_bytes": data.get("src_bytes", 0),
-        "dst_bytes": data.get("dst_bytes", 0),
-        "risk_score": risk
+        "protocol_type": data.get("protocol_type"),
+        "service": data.get("service"),
+        "src_bytes": data.get("src_bytes"),
+        "dst_bytes": data.get("dst_bytes"),
+        "risk_score": float(risk)
     }
 
+    # 🔥 THIS WAS MISSING
     redis_client.xadd(ALERTS_STREAM, alert)
 
     print(
         f"[ML] {alert['protocol_type']} | {alert['service']} | "
-        f"severity={alert['severity']} | risk={alert['risk_score']}"
+        f"severity={alert['severity']} | risk={risk}"
     )
 
 
 print("[ML] ML Service started 🚀")
 
-# First consume **all existing messages**
-last_id = "0"
-
 while True:
     messages = redis_client.xreadgroup(
         groupname=GROUP_NAME,
         consumername=CONSUMER_NAME,
-        streams={STREAM_NAME: last_id},
+        streams={TRAFFIC_STREAM: ">"},
         count=5,
         block=5000
     )
 
+    if not messages:
+        continue
+
     for stream, events in messages:
         for msg_id, data in events:
             process_alert(data)
-            redis_client.xack(STREAM_NAME, GROUP_NAME, msg_id)
-            last_id = msg_id  # move to next
+            redis_client.xack(TRAFFIC_STREAM, GROUP_NAME, msg_id)
 

@@ -20,22 +20,20 @@ FEATURE_COLUMNS = [
     "dst_host_rerror_rate","dst_host_srv_rerror_rate"
 ]
 
-
 def predict(alert: dict) -> float:
     """
     Takes ONE alert dict from Redis
-    Returns risk score between 0 and 1
+    Returns probabilistic risk score between 0 and 1
     """
 
-    # 🔹 Minimal feature mapping (for now)
+    # Minimal feature mapping
     data = {
         "duration": 0,
-        "protocol_type": alert["protocol_type"],
-        "service": alert["service"],
-        "flag": alert["flag"],
-        "src_bytes": int(alert["src_bytes"]),
-        "dst_bytes": int(alert["dst_bytes"]),
-        # defaults for missing KDD fields
+        "protocol_type": alert.get("protocol_type", "other"),
+        "service": alert.get("service", "other"),
+        "flag": alert.get("flag", "other"),
+        "src_bytes": int(alert.get("src_bytes", 0)),
+        "dst_bytes": int(alert.get("dst_bytes", 0)),
         **{col: 0 for col in FEATURE_COLUMNS if col not in [
             "duration","protocol_type","service","flag","src_bytes","dst_bytes"
         ]}
@@ -43,13 +41,18 @@ def predict(alert: dict) -> float:
 
     df = pd.DataFrame([data])
 
-    # Encode categoricals
+    # Ensure correct column order
+    df = df[FEATURE_COLUMNS]
+
+    # Encode categorical columns safely
     for col in ["protocol_type", "service", "flag"]:
+        known_classes = set(encoders[col].classes_)
+        df[col] = df[col].apply(lambda x: x if x in known_classes else "other")
         df[col] = encoders[col].transform(df[col])
 
-    prediction = model.predict(df)[0]
+    # 🔥 Probabilistic prediction (attack class = index 1)
+    risk_score = model.predict_proba(df)[0][1]
 
-    # Map to risk score
-    return float(prediction)
+    return round(float(risk_score), 3)
 
 
