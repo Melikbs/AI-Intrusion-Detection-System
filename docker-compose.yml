@@ -48,6 +48,13 @@ services:
     build: ./ml_service
     depends_on:
       - redis
+  alert_engine:
+    build: ./alert_engine
+    depends_on:
+      - redis
+      - fastapi
+    restart: always
+
 
 
 volumes:

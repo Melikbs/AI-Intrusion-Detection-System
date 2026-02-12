@@ -40,6 +40,8 @@ class AlertSchema(BaseModel):
     service: str        # <-- string now
     src_bytes: int
     dst_bytes: int
+    risk_score: float
+
 
 # POST /alerts endpoint to ingest new alerts
 @app.post("/alerts")
@@ -51,7 +53,9 @@ def create_alert(alert: AlertSchema, db: Session = Depends(get_db)):
         protocol_type=alert.protocol_type,
         service=alert.service,
         src_bytes=alert.src_bytes,
-        dst_bytes=alert.dst_bytes
+        dst_bytes=alert.dst_bytes,
+        risk_score=alert.risk_score
+
     )
     db.add(new_alert)
     db.commit()

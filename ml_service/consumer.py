@@ -35,6 +35,8 @@ def process_alert(data):
     Run ML prediction and publish result to alerts_stream
     """
     risk = predict(data)
+    print("DEBUG: input to ML:", data, flush=True)
+    print("DEBUG: predicted risk:", risk, flush=True)
 
     alert = {
         "timestamp": datetime.utcnow().isoformat(),
@@ -47,7 +49,7 @@ def process_alert(data):
         "risk_score": float(risk)
     }
 
-    # 🔥 THIS WAS MISSING
+    
     redis_client.xadd(ALERTS_STREAM, alert)
 
     print(

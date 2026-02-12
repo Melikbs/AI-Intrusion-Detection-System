@@ -35,6 +35,8 @@ class Alert(Base):
     service = Column(String, nullable=False)       # <-- String now
     src_bytes = Column(Integer, nullable=False)
     dst_bytes = Column(Integer, nullable=False)
+    risk_score = Column(Integer, nullable=True)
+
 
 def init_db():
     Base.metadata.create_all(bind=engine)
