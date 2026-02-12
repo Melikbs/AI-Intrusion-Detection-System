@@ -1,5 +1,5 @@
 import time
-from sqlalchemy import create_engine, Column, Integer, String
+from sqlalchemy import create_engine, Column, Integer, String, Float
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import OperationalError
@@ -35,7 +35,7 @@ class Alert(Base):
     service = Column(String, nullable=False)       # <-- String now
     src_bytes = Column(Integer, nullable=False)
     dst_bytes = Column(Integer, nullable=False)
-    risk_score = Column(Integer, nullable=True)
+    risk_score = Column(Float, nullable=True)
 
 
 def init_db():
