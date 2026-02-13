@@ -1,11 +1,18 @@
 import pandas as pd
+import numpy as np
 import joblib
-from sklearn.preprocessing import LabelEncoder
+import os
+
+from sklearn.pipeline import Pipeline
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
 
-# Column names
+# -------------------------
+# Columns in KDD dataset
+# -------------------------
 COLUMNS = [
     "duration","protocol_type","service","flag","src_bytes","dst_bytes",
     "land","wrong_fragment","urgent","hot","num_failed_logins","logged_in",
@@ -20,41 +27,90 @@ COLUMNS = [
     "dst_host_srv_rerror_rate","label","difficulty"
 ]
 
-# Load data
+# -------------------------
+# Load dataset
+# -------------------------
 df = pd.read_csv("data/raw/KDDTrain+.txt", names=COLUMNS)
 
-# Binary labels
+# Binary label
 df["attack"] = df["label"].apply(lambda x: 0 if x == "normal" else 1)
 
-# Encode categorical columns
-encoders = {}
-for col in ["protocol_type", "service", "flag"]:
-    le = LabelEncoder()
-    df[col] = le.fit_transform(df[col])
-    encoders[col] = le
+# -------------------------
+# Keep only real-time features
+# -------------------------
+df = df[[
+    "protocol_type",
+    "service",
+    "flag",
+    "src_bytes",
+    "dst_bytes",
+    "attack"
+]]
 
+# -------------------------
+# Feature Engineering
+# -------------------------
+df["byte_ratio"] = df["src_bytes"] / (df["dst_bytes"] + 1)
+df["total_bytes"] = df["src_bytes"] + df["dst_bytes"]
+df["log_src_bytes"] = np.log1p(df["src_bytes"])
+df["log_dst_bytes"] = np.log1p(df["dst_bytes"])
+
+# -------------------------
 # Features / Target
-X = df.drop(["label", "difficulty", "attack"], axis=1)
+# -------------------------
+X = df.drop("attack", axis=1)
 y = df["attack"]
 
-# Split
+# -------------------------
+# Define feature groups
+# -------------------------
+numeric_features = [
+    "src_bytes", "dst_bytes", "byte_ratio",
+    "total_bytes", "log_src_bytes", "log_dst_bytes"
+]
+categorical_features = ["protocol_type", "service", "flag"]
+
+# -------------------------
+# Preprocessing
+# -------------------------
+preprocessor = ColumnTransformer(
+    transformers=[
+        ("num", StandardScaler(), numeric_features),
+        ("cat", OneHotEncoder(handle_unknown="ignore"), categorical_features)
+    ]
+)
+
+# -------------------------
+# Full Pipeline
+# -------------------------
+pipeline = Pipeline([
+    ("preprocessor", preprocessor),
+    ("classifier", RandomForestClassifier(
+        n_estimators=100,
+        random_state=42,
+        n_jobs=-1
+    ))
+])
+
+# -------------------------
+# Train / Split
+# -------------------------
 X_train, X_val, y_train, y_val = train_test_split(
     X, y, test_size=0.2, random_state=42
 )
 
-# Train model
-model = RandomForestClassifier(
-    n_estimators=100,
-    random_state=42,
-    n_jobs=-1
-)
-model.fit(X_train, y_train)
+pipeline.fit(X_train, y_train)
 
+# -------------------------
 # Evaluate
-print(classification_report(y_val, model.predict(X_val)))
+# -------------------------
+print(classification_report(y_val, pipeline.predict(X_val)))
 
-# Save model & encoders
-joblib.dump(model, "ml/ids_model.pkl")
-joblib.dump(encoders, "ml/encoders.pkl")
+# -------------------------
+# Save pipeline
+# -------------------------
+os.makedirs("ml/models", exist_ok=True)
+joblib.dump(pipeline, "ml_service/ml/models/ids_pipeline_v1.pkl")
 
-print("[+] Model and encoders saved")
+print("[+] Pipeline saved as ids_pipeline_v1.pkl")
+

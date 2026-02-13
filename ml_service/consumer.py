@@ -27,8 +27,7 @@ try:
         mkstream=True
     )
 except redis.exceptions.ResponseError:
-    pass  # group already exists
-
+    pass  # Group already exists
 
 def process_alert(data):
     """
@@ -49,14 +48,12 @@ def process_alert(data):
         "risk_score": float(risk)
     }
 
-    
     redis_client.xadd(ALERTS_STREAM, alert)
 
     print(
         f"[ML] {alert['protocol_type']} | {alert['service']} | "
         f"severity={alert['severity']} | risk={risk}"
     )
-
 
 print("[ML] ML Service started 🚀")
 
