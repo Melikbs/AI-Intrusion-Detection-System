@@ -46,10 +46,13 @@ services:
       - "6379:6379"
   ml_service:
     build: ./ml_service
+    container_name: ml_service
     depends_on:
       - redis
+    restart: always
   alert_engine:
     build: ./alert_engine
+    container_name: alert_engine
     depends_on:
       - redis
       - fastapi

@@ -1,8 +1,14 @@
 import redis
 import time
 from datetime import datetime
-from ml.detect import predict
+import os
+import joblib
+import pandas as pd
+from ml.features import engineer_features
 
+# -------------------------
+# Redis config
+# -------------------------
 REDIS_HOST = "redis"
 REDIS_PORT = 6379
 
@@ -12,6 +18,16 @@ ALERTS_STREAM = "alerts_stream"
 GROUP_NAME = "ml_group"
 CONSUMER_NAME = "ml_consumer"
 
+# -------------------------
+# ML model config
+# -------------------------
+MODEL_PATH = "ml_service/ml/models/ids_pipeline_best.pkl"
+MODEL_MTIME = None
+pipeline = None
+
+# -------------------------
+# Connect to Redis
+# -------------------------
 redis_client = redis.Redis(
     host=REDIS_HOST,
     port=REDIS_PORT,
@@ -29,11 +45,48 @@ try:
 except redis.exceptions.ResponseError:
     pass  # Group already exists
 
+# -------------------------
+# Hot-reload ML model
+# -------------------------
+def reload_model():
+    global pipeline, MODEL_MTIME
+    if not os.path.exists(MODEL_PATH):
+        raise FileNotFoundError(f"Pipeline not found at {MODEL_PATH}. Run train_model.py first.")
+
+    mtime = os.path.getmtime(MODEL_PATH)
+    if MODEL_MTIME != mtime:
+        pipeline = joblib.load(MODEL_PATH)
+        MODEL_MTIME = mtime
+        print(f"[ML] Loaded pipeline from {MODEL_PATH}")
+
+# -------------------------
+# ML prediction
+# -------------------------
+def predict(alert: dict, pipeline) -> float:
+    """
+    Takes ONE alert dict from Redis
+    Returns a probabilistic risk score between 0 and 1
+    """
+    data = {
+        "protocol_type": alert.get("protocol_type", "other"),
+        "service": alert.get("service", "other"),
+        "flag": alert.get("flag", "other"),
+        "src_bytes": int(alert.get("src_bytes", 0)),
+        "dst_bytes": int(alert.get("dst_bytes", 0)),
+    }
+
+    df = pd.DataFrame([data])
+    df = engineer_features(df)
+    risk_score = pipeline.predict_proba(df)[0][1]
+    return round(float(risk_score), 3)
+
+# -------------------------
+# Process alerts from Redis
+# -------------------------
 def process_alert(data):
-    """
-    Run ML prediction and publish result to alerts_stream
-    """
-    risk = predict(data)
+    reload_model()
+    risk = predict(data, pipeline)
+
     print("DEBUG: input to ML:", data, flush=True)
     print("DEBUG: predicted risk:", risk, flush=True)
 
@@ -55,6 +108,9 @@ def process_alert(data):
         f"severity={alert['severity']} | risk={risk}"
     )
 
+# -------------------------
+# Main loop
+# -------------------------
 print("[ML] ML Service started 🚀")
 
 while True:
@@ -71,6 +127,11 @@ while True:
 
     for stream, events in messages:
         for msg_id, data in events:
-            process_alert(data)
-            redis_client.xack(TRAFFIC_STREAM, GROUP_NAME, msg_id)
+            try:
+                process_alert(data)
+            except Exception as e:
+                print(f"[ERROR] Failed to process message {msg_id}: {e}")
+            finally:
+                redis_client.xack(TRAFFIC_STREAM, GROUP_NAME, msg_id)
+
 

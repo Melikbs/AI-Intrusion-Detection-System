@@ -8,8 +8,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy all app files
 COPY . .
 
-# Make sure the pipeline exists in the container
+# Ensure models folder exists
 RUN ls -lh ml/models/
 
+# Default command: start the ML consumer
 CMD ["python", "consumer.py"]
+
 

@@ -1,16 +1,24 @@
 import pandas as pd
 import joblib
+import os
 from .features import engineer_features
 
-# Load full pipeline (preprocessing + model)
-pipeline = joblib.load("ml/models/ids_pipeline_v1.pkl")
+# Path to the best model
+MODEL_PATH = "ml_service/ml/models/ids_pipeline_best.pkl"
+
+# Load the best pipeline if it exists
+if os.path.exists(MODEL_PATH):
+    pipeline = joblib.load(MODEL_PATH)
+    print(f"[+] Loaded ML pipeline from {MODEL_PATH}")
+else:
+    raise FileNotFoundError(f"Pipeline not found at {MODEL_PATH}. Run train_model.py first.")
 
 def predict(alert: dict) -> float:
     """
     Takes ONE alert dict from Redis
     Returns a probabilistic risk score between 0 and 1
     """
-    # Minimal feature mapping
+    # Minimal feature mapping with defaults
     data = {
         "protocol_type": alert.get("protocol_type", "other"),
         "service": alert.get("service", "other"),

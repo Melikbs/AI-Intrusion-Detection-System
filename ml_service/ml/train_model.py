@@ -7,8 +7,10 @@ from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.ensemble import RandomForestClassifier
+from xgboost import XGBClassifier
+from sklearn.svm import SVC
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import classification_report
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
 # -------------------------
 # Columns in KDD dataset
@@ -81,16 +83,22 @@ preprocessor = ColumnTransformer(
 )
 
 # -------------------------
-# Full Pipeline
+# Define pipelines for each model
 # -------------------------
-pipeline = Pipeline([
-    ("preprocessor", preprocessor),
-    ("classifier", RandomForestClassifier(
-        n_estimators=100,
-        random_state=42,
-        n_jobs=-1
-    ))
-])
+pipelines = {
+    "RandomForest": Pipeline([
+        ("preprocessor", preprocessor),
+        ("classifier", RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1))
+    ]),
+    "XGBoost": Pipeline([
+        ("preprocessor", preprocessor),
+        ("classifier", XGBClassifier(use_label_encoder=False, eval_metric='logloss', random_state=42))
+    ]),
+    "SVM": Pipeline([
+        ("preprocessor", preprocessor),
+        ("classifier", SVC(kernel='rbf', probability=True, random_state=42))
+    ])
+}
 
 # -------------------------
 # Train / Split
@@ -99,18 +107,39 @@ X_train, X_val, y_train, y_val = train_test_split(
     X, y, test_size=0.2, random_state=42
 )
 
-pipeline.fit(X_train, y_train)
+# -------------------------
+# Train and evaluate all models
+# -------------------------
+results = {}
+for name, pipe in pipelines.items():
+    print(f"[+] Training {name}...")
+    pipe.fit(X_train, y_train)
+    y_pred = pipe.predict(X_val)
+
+    results[name] = {
+        "Accuracy": accuracy_score(y_val, y_pred),
+        "Precision": precision_score(y_val, y_pred),
+        "Recall": recall_score(y_val, y_pred),
+        "F1-score": f1_score(y_val, y_pred)
+    }
 
 # -------------------------
-# Evaluate
+# Metrics report
 # -------------------------
-print(classification_report(y_val, pipeline.predict(X_val)))
+df_results = pd.DataFrame(results).T
+print("\n[+] Model Comparison Metrics:\n")
+print(df_results)
 
 # -------------------------
-# Save pipeline
+# Save the best-performing model
 # -------------------------
-os.makedirs("ml/models", exist_ok=True)
-joblib.dump(pipeline, "ml_service/ml/models/ids_pipeline_v1.pkl")
+best_model_name = df_results["F1-score"].idxmax()
+best_model = pipelines[best_model_name]
 
-print("[+] Pipeline saved as ids_pipeline_v1.pkl")
+os.makedirs("ml_service/ml/models", exist_ok=True)
+best_model_path = "ml_service/ml/models/ids_pipeline_best.pkl"
+joblib.dump(best_model, best_model_path)
+
+print(f"[+] Best model ({best_model_name}) saved as ids_pipeline_best.pkl with F1-score={df_results.loc[best_model_name,'F1-score']:.3f}")
+
 
