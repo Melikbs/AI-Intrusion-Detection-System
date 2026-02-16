@@ -4,7 +4,7 @@ import os
 from .features import engineer_features
 
 # Path to the best model
-MODEL_PATH = "ml_service/ml/models/ids_pipeline_best.pkl"
+MODEL_PATH = "ml/models/ids_pipeline_best.pkl"
 
 # Load the best pipeline if it exists
 if os.path.exists(MODEL_PATH):

@@ -32,7 +32,7 @@ COLUMNS = [
 # -------------------------
 # Load dataset
 # -------------------------
-df = pd.read_csv("data/raw/KDDTrain+.txt", names=COLUMNS)
+df = pd.read_csv("../data/raw/KDDTrain+.txt", names=COLUMNS)
 
 # Binary label
 df["attack"] = df["label"].apply(lambda x: 0 if x == "normal" else 1)

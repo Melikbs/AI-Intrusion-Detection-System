@@ -21,7 +21,7 @@ CONSUMER_NAME = "ml_consumer"
 # -------------------------
 # ML model config
 # -------------------------
-MODEL_PATH = "ml_service/ml/models/ids_pipeline_best.pkl"
+MODEL_PATH = "ml/models/ids_pipeline_best.pkl"
 MODEL_MTIME = None
 pipeline = None
 
