@@ -6,7 +6,7 @@ import os
 from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestClassifier, VotingClassifier
 from xgboost import XGBClassifier
 from sklearn.svm import SVC
 from sklearn.model_selection import train_test_split
@@ -83,34 +83,40 @@ preprocessor = ColumnTransformer(
 )
 
 # -------------------------
-# Define pipelines for each model
+# Base classifiers
+# -------------------------
+rf_clf = RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1)
+xgb_clf = XGBClassifier(use_label_encoder=False, eval_metric='logloss', random_state=42)
+svm_clf = SVC(kernel='rbf', probability=True, random_state=42)
+
+# Ensemble classifier (soft voting)
+ensemble_clf = VotingClassifier(
+    estimators=[('rf', rf_clf), ('xgb', xgb_clf), ('svm', svm_clf)],
+    voting='soft'
+)
+
+# -------------------------
+# Pipelines
 # -------------------------
 pipelines = {
-    "RandomForest": Pipeline([
-        ("preprocessor", preprocessor),
-        ("classifier", RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1))
-    ]),
-    "XGBoost": Pipeline([
-        ("preprocessor", preprocessor),
-        ("classifier", XGBClassifier(use_label_encoder=False, eval_metric='logloss', random_state=42))
-    ]),
-    "SVM": Pipeline([
-        ("preprocessor", preprocessor),
-        ("classifier", SVC(kernel='rbf', probability=True, random_state=42))
-    ])
+    "RandomForest": Pipeline([("preprocessor", preprocessor), ("classifier", rf_clf)]),
+    "XGBoost": Pipeline([("preprocessor", preprocessor), ("classifier", xgb_clf)]),
+    "SVM": Pipeline([("preprocessor", preprocessor), ("classifier", svm_clf)]),
+    "Ensemble": Pipeline([("preprocessor", preprocessor), ("classifier", ensemble_clf)])
 }
 
 # -------------------------
-# Train / Split
+# Train / Validation Split
 # -------------------------
-X_train, X_val, y_train, y_val = train_test_split(
-    X, y, test_size=0.2, random_state=42
-)
+X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
 
 # -------------------------
 # Train and evaluate all models
 # -------------------------
 results = {}
+MODEL_DIR = os.path.join(os.path.dirname(__file__), "models")
+os.makedirs(MODEL_DIR, exist_ok=True)
+
 for name, pipe in pipelines.items():
     print(f"[+] Training {name}...")
     pipe.fit(X_train, y_train)
@@ -123,6 +129,11 @@ for name, pipe in pipelines.items():
         "F1-score": f1_score(y_val, y_pred)
     }
 
+    # Save each individual model for ensemble use
+    model_path = os.path.join(MODEL_DIR, f"ids_pipeline_{name.lower()}.pkl")
+    joblib.dump(pipe, model_path)
+    print(f"[+] Saved {name} model at {model_path}")
+
 # -------------------------
 # Metrics report
 # -------------------------
@@ -131,15 +142,14 @@ print("\n[+] Model Comparison Metrics:\n")
 print(df_results)
 
 # -------------------------
-# Save the best-performing model
+# Save the best-performing model as before
 # -------------------------
 best_model_name = df_results["F1-score"].idxmax()
 best_model = pipelines[best_model_name]
-
-os.makedirs("ml_service/ml/models", exist_ok=True)
-best_model_path = "ml_service/ml/models/ids_pipeline_best.pkl"
+best_model_path = os.path.join(MODEL_DIR, "ids_pipeline_best.pkl")
 joblib.dump(best_model, best_model_path)
+print(f"\n[+] Best model ({best_model_name}) saved as ids_pipeline_best.pkl "
+      f"with F1-score={df_results.loc[best_model_name,'F1-score']:.3f}")
 
-print(f"[+] Best model ({best_model_name}) saved as ids_pipeline_best.pkl with F1-score={df_results.loc[best_model_name,'F1-score']:.3f}")
 
 
