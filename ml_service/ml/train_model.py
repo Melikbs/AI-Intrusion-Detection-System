@@ -2,6 +2,8 @@ import pandas as pd
 import numpy as np
 import joblib
 import os
+import json
+from datetime import datetime
 
 from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
@@ -11,6 +13,7 @@ from xgboost import XGBClassifier
 from sklearn.svm import SVC
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+
 
 # -------------------------
 # Columns in KDD dataset
@@ -28,6 +31,7 @@ COLUMNS = [
     "dst_host_serror_rate","dst_host_srv_serror_rate","dst_host_rerror_rate",
     "dst_host_srv_rerror_rate","label","difficulty"
 ]
+
 
 # -------------------------
 # Load dataset
@@ -99,23 +103,41 @@ ensemble_clf = VotingClassifier(
 # Pipelines
 # -------------------------
 pipelines = {
-    "RandomForest": Pipeline([("preprocessor", preprocessor), ("classifier", rf_clf)]),
-    "XGBoost": Pipeline([("preprocessor", preprocessor), ("classifier", xgb_clf)]),
-    "SVM": Pipeline([("preprocessor", preprocessor), ("classifier", svm_clf)]),
-    "Ensemble": Pipeline([("preprocessor", preprocessor), ("classifier", ensemble_clf)])
+    "randomforest": Pipeline([("preprocessor", preprocessor), ("classifier", rf_clf)]),
+    "xgboost": Pipeline([("preprocessor", preprocessor), ("classifier", xgb_clf)]),
+    "svm": Pipeline([("preprocessor", preprocessor), ("classifier", svm_clf)]),
+    "ensemble": Pipeline([("preprocessor", preprocessor), ("classifier", ensemble_clf)])
 }
 
 # -------------------------
 # Train / Validation Split
 # -------------------------
-X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
+X_train, X_val, y_train, y_val = train_test_split(
+    X, y, test_size=0.2, random_state=42
+)
 
 # -------------------------
-# Train and evaluate all models
+# Create Versioned Model Directory
+# -------------------------
+BASE_MODEL_DIR = os.path.join(os.path.dirname(__file__), "models")
+os.makedirs(BASE_MODEL_DIR, exist_ok=True)
+
+existing_versions = [
+    int(d[1:]) for d in os.listdir(BASE_MODEL_DIR)
+    if d.startswith("v") and d[1:].isdigit()
+]
+
+next_version = max(existing_versions) + 1 if existing_versions else 1
+version_name = f"v{next_version}"
+VERSION_DIR = os.path.join(BASE_MODEL_DIR, version_name)
+os.makedirs(VERSION_DIR, exist_ok=True)
+
+print(f"\n[+] Saving models to version folder: {VERSION_DIR}\n")
+
+# -------------------------
+# Train and Evaluate Models
 # -------------------------
 results = {}
-MODEL_DIR = os.path.join(os.path.dirname(__file__), "models")
-os.makedirs(MODEL_DIR, exist_ok=True)
 
 for name, pipe in pipelines.items():
     print(f"[+] Training {name}...")
@@ -129,27 +151,46 @@ for name, pipe in pipelines.items():
         "F1-score": f1_score(y_val, y_pred)
     }
 
-    # Save each individual model for ensemble use
-    model_path = os.path.join(MODEL_DIR, f"ids_pipeline_{name.lower()}.pkl")
+    model_path = os.path.join(VERSION_DIR, f"{name}.pkl")
     joblib.dump(pipe, model_path)
     print(f"[+] Saved {name} model at {model_path}")
 
 # -------------------------
-# Metrics report
+# Metrics Report
 # -------------------------
 df_results = pd.DataFrame(results).T
 print("\n[+] Model Comparison Metrics:\n")
 print(df_results)
 
 # -------------------------
-# Save the best-performing model as before
+# Save Best Model
 # -------------------------
 best_model_name = df_results["F1-score"].idxmax()
 best_model = pipelines[best_model_name]
-best_model_path = os.path.join(MODEL_DIR, "ids_pipeline_best.pkl")
+best_model_path = os.path.join(VERSION_DIR, "best.pkl")
 joblib.dump(best_model, best_model_path)
-print(f"\n[+] Best model ({best_model_name}) saved as ids_pipeline_best.pkl "
-      f"with F1-score={df_results.loc[best_model_name,'F1-score']:.3f}")
 
+print(
+    f"\n[+] Best model: {best_model_name} "
+    f"(F1={df_results.loc[best_model_name,'F1-score']:.3f})"
+)
+
+# -------------------------
+# Save Metadata
+# -------------------------
+metadata = {
+    "version": version_name,
+    "trained_at": datetime.utcnow().isoformat(),
+    "best_model": best_model_name,
+    "metrics": df_results.to_dict(),
+    "features": list(X.columns)
+}
+
+metadata_path = os.path.join(VERSION_DIR, "metadata.json")
+with open(metadata_path, "w") as f:
+    json.dump(metadata, f, indent=4)
+
+print(f"[+] Metadata saved at {metadata_path}")
+print(f"[+] Training complete for version {version_name}\n")
 
 
