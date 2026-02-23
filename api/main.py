@@ -32,7 +32,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
     try:
         while True:
-            await websocket.receive_text()  # keeps connection alive
+            await asyncio.sleep(3600)   # keeps connection alive
     except WebSocketDisconnect:
         active_connections.remove(websocket)
 
@@ -84,7 +84,7 @@ class AlertSchema(BaseModel):
 # ===============================
 
 @app.post("/alerts")
-def create_alert(alert: AlertSchema, db: Session = Depends(get_db)):
+async def create_alert(alert: AlertSchema, db: Session = Depends(get_db)):
     new_alert = Alert(
         timestamp=alert.timestamp,
         alert_type=alert.alert_type,

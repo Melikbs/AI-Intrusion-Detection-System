@@ -50,6 +50,9 @@ services:
     depends_on:
       - redis
     restart: always
+    volumes:
+      - ./data:/app/data
+      - ./ml_service/ml/models:/app/ml/models
   alert_engine:
     build: ./alert_engine
     container_name: alert_engine
