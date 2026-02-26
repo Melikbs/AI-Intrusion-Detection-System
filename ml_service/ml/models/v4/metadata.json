@@ -1,0 +1,42 @@
+{
+    "version": "v4",
+    "trained_at": "2026-02-25T16:00:33.003565",
+    "best_model": "randomforest",
+    "metrics": {
+        "Accuracy": {
+            "randomforest": 0.9928954157570946,
+            "xgboost": 0.9917840841436794,
+            "svm": 0.9787656281008137,
+            "ensemble": 0.992339749950387
+        },
+        "Precision": {
+            "randomforest": 0.9911047102677059,
+            "xgboost": 0.9907501697216565,
+            "svm": 0.9792732855680655,
+            "ensemble": 0.9907611459569419
+        },
+        "Recall": {
+            "randomforest": 0.9937144313259152,
+            "xgboost": 0.9916758685126985,
+            "svm": 0.9751974857725304,
+            "ensemble": 0.9928650301537416
+        },
+        "F1-score": {
+            "randomforest": 0.9924078551130339,
+            "xgboost": 0.991212802988496,
+            "svm": 0.977231135889688,
+            "ensemble": 0.991811972338891
+        }
+    },
+    "features": [
+        "protocol_type",
+        "service",
+        "flag",
+        "src_bytes",
+        "dst_bytes",
+        "byte_ratio",
+        "total_bytes",
+        "log_src_bytes",
+        "log_dst_bytes"
+    ]
+}
