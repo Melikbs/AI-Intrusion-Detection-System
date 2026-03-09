@@ -9,7 +9,9 @@ from db import Alert, SessionLocal, init_db
 
 app = FastAPI(title="Alerts API")
 
+# -----------------------------
 # CORS setup
+# -----------------------------
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # later restrict to dashboard URL
@@ -18,41 +20,36 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ===============================
+# -----------------------------
 # WebSocket Connection Manager
-# ===============================
-
+# -----------------------------
 active_connections: List[WebSocket] = []
-
 
 @app.websocket("/ws/alerts")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     active_connections.append(websocket)
-
     try:
         while True:
-            await asyncio.sleep(3600)   # keeps connection alive
+            # Keep the connection alive
+            await asyncio.sleep(3600)
     except WebSocketDisconnect:
         active_connections.remove(websocket)
 
-
+# Broadcast new alerts to all connected clients
 async def broadcast_alert(alert_data: dict):
     disconnected = []
     for connection in active_connections:
         try:
             await connection.send_json(alert_data)
-        except:
+        except WebSocketDisconnect:
             disconnected.append(connection)
-
     for conn in disconnected:
         active_connections.remove(conn)
 
-
-# ===============================
+# -----------------------------
 # Database
-# ===============================
-
+# -----------------------------
 def get_db():
     db = SessionLocal()
     try:
@@ -60,14 +57,11 @@ def get_db():
     finally:
         db.close()
 
-
 init_db()
 
-
-# ===============================
+# -----------------------------
 # Schemas
-# ===============================
-
+# -----------------------------
 class AlertSchema(BaseModel):
     timestamp: str
     severity: str
@@ -78,11 +72,9 @@ class AlertSchema(BaseModel):
     dst_bytes: int
     risk_score: float
 
-
-# ===============================
+# -----------------------------
 # REST Endpoints
-# ===============================
-
+# -----------------------------
 @app.post("/alerts")
 async def create_alert(alert: AlertSchema, db: Session = Depends(get_db)):
     new_alert = Alert(
@@ -100,7 +92,6 @@ async def create_alert(alert: AlertSchema, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_alert)
 
-    # Prepare alert payload for broadcast
     alert_payload = {
         "id": new_alert.id,
         "timestamp": new_alert.timestamp,
@@ -113,11 +104,10 @@ async def create_alert(alert: AlertSchema, db: Session = Depends(get_db)):
         "risk_score": new_alert.risk_score
     }
 
-    # Broadcast asynchronously
+    # Send to all connected WebSocket clients
     asyncio.create_task(broadcast_alert(alert_payload))
 
     return {"status": "ok", "id": new_alert.id}
-
 
 @app.get("/alerts")
 def read_alerts(db: Session = Depends(get_db)):
@@ -136,5 +126,3 @@ def read_alerts(db: Session = Depends(get_db)):
         }
         for alert in alerts
     ]
-
-

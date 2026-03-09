@@ -1,5 +1,6 @@
-@page "/"
+@page "/" 
 @inject Dashboard.Services.AlertService AlertService
+@inject IJSRuntime JS
 
 <h1>🛡️ SOC Dashboard</h1>
 
@@ -28,13 +29,12 @@ else
         <tbody>
             @foreach (var alert in alerts)
             {
-                <tr>
+                <tr @key="alert.Timestamp">
                     <td>@alert.Timestamp</td>
                     <td>@alert.Alert_Type</td>
                     <td>@alert.Severity</td>
                     <td>@alert.ProtocolType</td>
                     <td>@alert.Service</td>
-
                     <td>@alert.Src_Bytes</td>
                     <td>@alert.Dst_Bytes</td>
                 </tr>
@@ -44,11 +44,32 @@ else
 }
 
 @code {
-    private List<Dashboard.Models.Alert>? alerts;
+    private List<Dashboard.Models.Alert> alerts = new List<Dashboard.Models.Alert>();
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        alerts = await AlertService.GetAlertsAsync();
+        if (firstRender)
+        {
+            // Load initial alerts via HTTP
+            alerts = await AlertService.GetAlertsAsync();
+
+            // Connect to JS WebSocket for live updates
+            await JS.InvokeVoidAsync("alertsocket.connect",
+                DotNetObjectReference.Create(this));
+
+            StateHasChanged();
+        }
+    }
+
+    [JSInvokable]
+    public void ReceiveAlert(Dashboard.Models.Alert alert)
+    {
+        alerts.Insert(0, alert); // newest on top
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        // Clean up if needed
     }
 }
-

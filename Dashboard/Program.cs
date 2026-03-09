@@ -1,27 +1,30 @@
 using Dashboard.Components;
 using Dashboard.Services;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+// Add services to the container
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
-builder.Services.AddSingleton<Dashboard.Services.AlertService>();
-builder.Services.AddHttpClient<AlertService>();
+
+builder.Services.AddHttpClient(); // provide HttpClient for AlertService
+builder.Services.AddSingleton<AlertService>();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+// Start WebSocket listener for live alerts
+var alertService = app.Services.GetRequiredService<AlertService>();
+_ = Task.Run(() => alertService.StartWebSocketAsync());
+
+// Configure the HTTP request pipeline
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
 
 // app.UseHttpsRedirection();
-
-app.UseStaticFiles();
-app.UseAntiforgery();
+app.UseStaticFiles(); // serve wwwroot assets
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
