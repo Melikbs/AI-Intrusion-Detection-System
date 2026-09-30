@@ -4,7 +4,8 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import List
 import asyncio
-
+import json
+import os
 from db import Alert, SessionLocal, init_db
 
 app = FastAPI(title="Alerts API")

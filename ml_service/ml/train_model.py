@@ -24,7 +24,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # Go up ONE level (to /app)
 PROJECT_ROOT = os.path.abspath(os.path.join(BASE_DIR, ".."))
 
-DATA_PATH = os.path.join(PROJECT_ROOT,"..", "data", "raw", "KDDTrain+.txt")
+DATA_PATH = os.path.join(PROJECT_ROOT, "data", "raw", "KDDTrain+.txt")
 
 print(f"[DEBUG] BASE_DIR: {BASE_DIR}")
 print(f"[DEBUG] PROJECT_ROOT: {PROJECT_ROOT}")
@@ -220,7 +220,22 @@ df_results = pd.DataFrame(results).T
 
 print("\n[+] Model Comparison Metrics:\n")
 print(df_results)
+# =====================================================
+# Save Metrics
+# =====================================================
 
+metrics_path = os.path.join(VERSION_DIR, "metrics.json")
+
+metrics_data = {
+    "version": version_name,
+    "generated_at": datetime.now().isoformat(),
+    "models": results
+}
+
+with open(metrics_path, "w") as f:
+    json.dump(metrics_data, f, indent=4)
+
+print(f"[+] Metrics saved at {metrics_path}")
 
 # =====================================================
 # Save Best Model
