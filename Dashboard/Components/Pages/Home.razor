@@ -1,75 +1,230 @@
-@page "/" 
+@page "/"
+@rendermode InteractiveServer
+
+@using Microsoft.JSInterop
 @inject Dashboard.Services.AlertService AlertService
 @inject IJSRuntime JS
 
 <h1>🛡️ SOC Dashboard</h1>
 
-@if (alerts == null)
-{
-    <p>Loading alerts...</p>
-}
-else if (!alerts.Any())
-{
-    <p>No alerts found.</p>
+<div class="row mb-4">
+
+<div class="col-md-4">
+    <label class="form-label">
+        <strong>Severity</strong>
+    </label>
+
+    <select class="form-select" @bind="selectedSeverity">
+        <option value="All">All</option>
+        <option value="Low">Low</option>
+        <option value="Medium">Medium</option>
+        <option value="High">High</option>
+        <option value="Critical">Critical</option>
+    </select>
+</div>
+
+<div class="col-md-4">
+    <label class="form-label">
+        <strong>Alert Type</strong>
+    </label>
+
+    <select class="form-select" @bind="selectedType">
+        <option value="All">All</option>
+
+        @foreach (var type in AlertTypes)
+        {
+            <option value="@type">@type</option>
+        }
+    </select>
+</div>
+
+<div class="col-md-4">
+    <label class="form-label">
+        <strong>Time</strong>
+    </label>
+
+    <select class="form-select" @bind="selectedTime">
+        <option value="All">All</option>
+        <option value="5">Last 5 minutes</option>
+        <option value="15">Last 15 minutes</option>
+        <option value="60">Last hour</option>
+    </select>
+</div>
+
+</div>
+
+<p>
+    Showing <strong>@FilteredAlerts.Count</strong>
+    of <strong>@alerts.Count</strong> alerts
+</p>
+
+@if (FilteredAlerts.Count == 0)
+{ <p>No alerts match the selected filters.</p>
 }
 else
-{
-    <table class="table table-striped">
-        <thead>
-            <tr>
-                <th>Time</th>
-                <th>Type</th>
-                <th>Severity</th>
-                <th>Protocol</th>
-                <th>Service</th>
-                <th>Src Bytes</th>
-                <th>Dst Bytes</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var alert in alerts)
-            {
-                <tr @key="alert.Timestamp">
-                    <td>@alert.Timestamp</td>
-                    <td>@alert.Alert_Type</td>
-                    <td>@alert.Severity</td>
-                    <td>@alert.ProtocolType</td>
-                    <td>@alert.Service</td>
-                    <td>@alert.Src_Bytes</td>
-                    <td>@alert.Dst_Bytes</td>
-                </tr>
-            }
-        </tbody>
-    </table>
-}
+{ <table class="table table-striped">
 
-@code {
-    private List<Dashboard.Models.Alert> alerts = new List<Dashboard.Models.Alert>();
+    <thead>
+        <tr>
+            <th>Time</th>
+            <th>Type</th>
+            <th>Severity</th>
+            <th>Protocol</th>
+            <th>Service</th>
+            <th>Src Bytes</th>
+            <th>Dst Bytes</th>
+            <th>Risk</th>
+        </tr>
+    </thead>
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
+    <tbody>
+
+        @foreach (var alert in FilteredAlerts)
         {
-            // Load initial alerts via HTTP
-            alerts = await AlertService.GetAlertsAsync();
+            <tr @key="alert.Id">
 
-            // Connect to JS WebSocket for live updates
-            await JS.InvokeVoidAsync("alertsocket.connect",
-                DotNetObjectReference.Create(this));
+                <td>@alert.Timestamp</td>
+                <td>@alert.Alert_Type</td>
+                <td>@alert.Severity</td>
+                <td>@alert.ProtocolType</td>
+                <td>@alert.Service</td>
+                <td>@alert.Src_Bytes</td>
+                <td>@alert.Dst_Bytes</td>
+                <td>@alert.RiskScore</td>
 
-            StateHasChanged();
+            </tr>
         }
-    }
 
-    [JSInvokable]
-    public void ReceiveAlert(Dashboard.Models.Alert alert)
-    {
-        alerts.Insert(0, alert); // newest on top
-        StateHasChanged();
-    }
+    </tbody>
 
-    public void Dispose()
+</table>
+
+}
+
+@code
+{
+private List<Dashboard.Models.Alert> alerts = new();
+
+private string selectedSeverity = "All";
+
+private string selectedType = "All";
+
+private string selectedTime = "All";
+
+
+private IEnumerable<string> AlertTypes =>
+    alerts
+        .Where(a => !string.IsNullOrWhiteSpace(a.Alert_Type))
+        .Select(a => a.Alert_Type)
+        .Distinct()
+        .OrderBy(a => a);
+
+
+private List<Dashboard.Models.Alert> FilteredAlerts
+{
+    get
     {
-        // Clean up if needed
+        IEnumerable<Dashboard.Models.Alert> result = alerts;
+
+
+        // Severity filter
+
+        if (selectedSeverity != "All")
+        {
+            result = result.Where(a =>
+                string.Equals(
+                    a.Severity,
+                    selectedSeverity,
+                    StringComparison.OrdinalIgnoreCase
+                )
+            );
+        }
+
+
+        // Alert type filter
+
+        if (selectedType != "All")
+        {
+            result = result.Where(a =>
+                string.Equals(
+                    a.Alert_Type,
+                    selectedType,
+                    StringComparison.OrdinalIgnoreCase
+                )
+            );
+        }
+
+
+        // Time filter
+
+        if (selectedTime != "All" &&
+            int.TryParse(selectedTime, out int minutes))
+        {
+            var cutoff = DateTime.Now.AddMinutes(-minutes);
+
+            result = result.Where(a =>
+            {
+                if (DateTime.TryParse(a.Timestamp, out var timestamp))
+                {
+                    return timestamp >= cutoff;
+                }
+
+                return false;
+            });
+        }
+
+
+        return result.ToList();
     }
 }
+
+
+protected override async Task OnAfterRenderAsync(bool firstRender)
+{
+    if (!firstRender)
+        return;
+
+    Console.WriteLine("[Blazor] Loading initial alerts...");
+
+    alerts = await AlertService.GetAlertsAsync();
+
+    Console.WriteLine(
+        $"[Blazor] Loaded {alerts.Count} alerts"
+    );
+
+
+    var dotNetHelper =
+        DotNetObjectReference.Create(this);
+
+
+    await JS.InvokeVoidAsync(
+        "alertsocket.connect",
+        dotNetHelper
+    );
+
+
+    Console.WriteLine(
+        "[Blazor] WebSocket connection requested"
+    );
+
+
+    await InvokeAsync(StateHasChanged);
+}
+
+
+[JSInvokable]
+public async Task ReceiveAlert(Dashboard.Models.Alert alert)
+{
+    Console.WriteLine(
+        $"[Blazor] LIVE ALERT RECEIVED: {alert.Alert_Type}"
+    );
+
+
+    alerts.Insert(0, alert);
+
+
+    await InvokeAsync(StateHasChanged);
+}
+
+}
+

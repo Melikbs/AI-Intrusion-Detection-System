@@ -6,3 +6,4 @@ data/processed/
 alerts_log.csv
 .ipynb_checkpoints/
 
+dashboard-keys/

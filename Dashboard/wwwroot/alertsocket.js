@@ -1,39 +1,64 @@
 window.alertsocket = {
     socket: null,
-    dotnetRef: null,
 
-    connect(dotnetRef) {
-        this.dotnetRef = dotnetRef;
+    connect: function (dotnetHelper) {
+        console.log("[AlertSocket] Connecting to FastAPI WebSocket...");
 
-        const hostname = window.location.hostname === 'localhost' ? 'localhost' : 'fastapi';
-        const wsUrl = `ws://${hostname}:8000/ws/alerts`;
+        const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
 
-        console.log("Connecting WebSocket to:", wsUrl);
-        this._connect(wsUrl);
-    },
+        // IMPORTANT:
+        // localhost:8000 is the FastAPI port exposed by Docker.
+        const wsUrl = protocol + "//" + window.location.hostname + ":8000/ws/alerts";
 
-    _connect(wsUrl) {
+        console.log("[AlertSocket] URL:", wsUrl);
+
         this.socket = new WebSocket(wsUrl);
 
-        this.socket.onmessage = (event) => {
+        this.socket.onopen = function () {
+            console.log("[AlertSocket] CONNECTED");
+        };
+
+        this.socket.onmessage = async function (event) {
+            console.log("[AlertSocket] MESSAGE RECEIVED:", event.data);
+
             try {
                 const alert = JSON.parse(event.data);
-                this.dotnetRef.invokeMethodAsync('ReceiveAlert', alert);
-            } catch (err) {
-                console.error("Error parsing alert:", err);
+
+                console.log("[AlertSocket] Parsed alert:", alert);
+
+                await dotnetHelper.invokeMethodAsync(
+                    "ReceiveAlert",
+                    alert
+                );
+
+                console.log("[AlertSocket] Alert sent to Blazor");
+            }
+            catch (error) {
+                console.error(
+                    "[AlertSocket] Error processing message:",
+                    error
+                );
             }
         };
 
-        this.socket.onopen = () => console.log("WebSocket connected:", wsUrl);
-
-        this.socket.onclose = (event) => {
-            console.warn("WebSocket closed, retrying in 2s", event.reason);
-            setTimeout(() => this._connect(wsUrl), 2000); // reconnect after 2s
+        this.socket.onerror = function (error) {
+            console.error("[AlertSocket] WebSocket ERROR:", error);
         };
 
-        this.socket.onerror = (err) => {
-            console.error("WebSocket error:", err);
-            this.socket.close(); // trigger reconnect
+        this.socket.onclose = function (event) {
+            console.warn(
+                "[AlertSocket] WebSocket CLOSED:",
+                event.code,
+                event.reason
+            );
         };
+    },
+
+    disconnect: function () {
+        if (this.socket) {
+            console.log("[AlertSocket] Disconnecting...");
+            this.socket.close();
+            this.socket = null;
+        }
     }
 };

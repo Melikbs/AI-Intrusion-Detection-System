@@ -25,28 +25,70 @@ app.add_middleware(
 # -----------------------------
 active_connections: List[WebSocket] = []
 
+
 @app.websocket("/ws/alerts")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
+
     active_connections.append(websocket)
+
+    print(
+        f"[WS] Client connected. "
+        f"Active clients: {len(active_connections)}"
+    )
+
     try:
         while True:
-            # Keep the connection alive
             await asyncio.sleep(3600)
+
     except WebSocketDisconnect:
-        active_connections.remove(websocket)
+        if websocket in active_connections:
+            active_connections.remove(websocket)
+
+        print(
+            f"[WS] Client disconnected. "
+            f"Active clients: {len(active_connections)}"
+        )
+
+    except Exception as e:
+        if websocket in active_connections:
+            active_connections.remove(websocket)
+
+        print(f"[WS] Connection error: {e}")
+
 
 # Broadcast new alerts to all connected clients
 async def broadcast_alert(alert_data: dict):
+    if not active_connections:
+        print("[WS] No connected clients")
+        return
+
+    print(
+        f"[WS] Broadcasting alert to "
+        f"{len(active_connections)} client(s)"
+    )
+
     disconnected = []
-    for connection in active_connections:
+
+    # Work on a snapshot so the original list can safely change
+    # while we're sending.
+    for connection in list(active_connections):
         try:
             await connection.send_json(alert_data)
-        except WebSocketDisconnect:
-            disconnected.append(connection)
-    for conn in disconnected:
-        active_connections.remove(conn)
 
+        except Exception as e:
+            print(f"[WS] Send failed: {e}")
+            disconnected.append(connection)
+
+    # Remove dead connections
+    for connection in disconnected:
+        if connection in active_connections:
+            active_connections.remove(connection)
+
+    print(
+        f"[WS] Broadcast complete. "
+        f"Active clients: {len(active_connections)}"
+    )
 # -----------------------------
 # Database
 # -----------------------------

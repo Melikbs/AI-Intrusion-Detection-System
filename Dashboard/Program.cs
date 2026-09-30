@@ -7,14 +7,10 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
-builder.Services.AddHttpClient(); // provide HttpClient for AlertService
+builder.Services.AddHttpClient();
 builder.Services.AddSingleton<AlertService>();
 
 var app = builder.Build();
-
-// Start WebSocket listener for live alerts
-var alertService = app.Services.GetRequiredService<AlertService>();
-_ = Task.Run(() => alertService.StartWebSocketAsync());
 
 // Configure the HTTP request pipeline
 if (!app.Environment.IsDevelopment())
@@ -23,8 +19,9 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
-// app.UseHttpsRedirection();
-app.UseStaticFiles(); // serve wwwroot assets
+app.UseStaticFiles();
+
+app.UseAntiforgery();
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();

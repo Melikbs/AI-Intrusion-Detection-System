@@ -29,6 +29,8 @@ services:
       - fastapi
     ports:
       - "8080:8080"
+    volumes:
+      - ./dashboard-keys:/root/.aspnet/DataProtection-Keys
     environment:
       - API_URL=http://fastapi:8000/alerts
 
