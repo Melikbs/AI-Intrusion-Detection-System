@@ -32,6 +32,25 @@ namespace Dashboard.Services
                 return new List<Alert>();
             }
         }
+        // Fetch ML model performance metrics from FastAPI
+	public async Task<MetricsResponse?> GetMetricsAsync()
+	{
+    	    try
+    	    {
+        	var metricsUrl = _apiUrl.Replace("/alerts", "/metrics");
+
+        	var metrics =
+            	    await _http.GetFromJsonAsync<MetricsResponse>(metricsUrl);
+
+        	return metrics;
+    	    }
+    	    catch (Exception ex)
+    	    {
+        	Console.WriteLine($"FastAPI Metrics error: {ex.Message}");
+
+        	return null;
+    	    }
+        }
     }
 }
 

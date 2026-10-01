@@ -6,7 +6,74 @@
 @inject IJSRuntime JS
 
 <h1>🛡️ SOC Dashboard</h1>
+@if (metrics == null)
+{
+    <p>Loading model metrics...</p>
+}
+else
+{
+    <div class="card mb-4">
+        <div class="card-header">
+            <strong>📊 ML Model Performance</strong>
+            <span class="float-end">
+                Version: @metrics.Version
+            </span>
+        </div>
 
+        <div class="card-body">
+
+            <div class="row">
+
+                @foreach (var model in metrics.Models)
+                {
+                    <div class="col-md-3 mb-3">
+
+                        <div class="card h-100">
+
+                            <div class="card-body">
+
+                                <h5 class="card-title">
+                                    @model.Key
+                                </h5>
+
+                                <hr />
+
+                                <p>
+                                    <strong>Accuracy:</strong>
+                                    @($"{model.Value.Accuracy:P2}")
+                                </p>
+
+                                <p>
+                                    <strong>Precision:</strong>
+                                    @($"{model.Value.Precision:P2}")
+                                </p>
+
+                                <p>
+                                    <strong>Recall:</strong>
+                                    @($"{model.Value.Recall:P2}")
+                                </p>
+
+                                <p>
+                                    <strong>F1-score:</strong>
+                                    @($"{model.Value.F1Score:P2}")
+                                </p>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+                }
+
+            </div>
+
+            <small class="text-muted">
+                Generated: @metrics.GeneratedAt
+            </small>
+
+        </div>
+    </div>
+}
 <div class="row mb-4">
 
 <div class="col-md-4">
@@ -104,7 +171,7 @@ else
 @code
 {
 private List<Dashboard.Models.Alert> alerts = new();
-
+private Dashboard.Models.MetricsResponse? metrics;
 private string selectedSeverity = "All";
 
 private string selectedType = "All";
@@ -191,7 +258,19 @@ protected override async Task OnAfterRenderAsync(bool firstRender)
     Console.WriteLine(
         $"[Blazor] Loaded {alerts.Count} alerts"
     );
+    metrics = await AlertService.GetMetricsAsync();
 
+    if (metrics != null)
+    {
+        Console.WriteLine(
+            $"[Blazor] Loaded ML metrics for {metrics.Version}"
+        );
+    }
+    else
+    {
+        Console.WriteLine("[Blazor] Failed to load ML metrics");
+    }
+    
 
     var dotNetHelper =
         DotNetObjectReference.Create(this);

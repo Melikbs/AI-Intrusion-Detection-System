@@ -169,3 +169,43 @@ def read_alerts(db: Session = Depends(get_db)):
         }
         for alert in alerts
     ]
+# -----------------------------
+# ML Metrics Endpoint
+# -----------------------------
+
+@app.get("/metrics")
+def read_metrics():
+    models_dir = "/app/ml_models"
+
+    versions = [
+        d for d in os.listdir(models_dir)
+        if d.startswith("v") and d[1:].isdigit()
+    ]
+
+    if not versions:
+        return {
+            "status": "error",
+            "message": "No trained model versions found"
+        }
+
+    latest_version = max(
+        versions,
+        key=lambda v: int(v[1:])
+    )
+
+    metrics_path = os.path.join(
+        models_dir,
+        latest_version,
+        "metrics.json"
+    )
+
+    if not os.path.exists(metrics_path):
+        return {
+            "status": "error",
+            "message": f"Metrics not found for {latest_version}"
+        }
+
+    with open(metrics_path, "r") as f:
+        metrics = json.load(f)
+
+    return metrics
